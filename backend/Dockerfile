@@ -5,8 +5,14 @@ RUN apt-get update && apt-get install -y \
     python3 python3-pip \
     poppler-utils \
     pandoc \
-    texlive-latex-base texlive-latex-extra texlive-fonts-recommended \
+    texlive-base \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
     && rm -rf /var/lib/apt/lists/*
+
+# Fail the build if pdflatex is missing
+RUN which pdflatex && pdflatex --version
 
 WORKDIR /app
 COPY package*.json ./
