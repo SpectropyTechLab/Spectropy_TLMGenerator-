@@ -132,7 +132,10 @@ ${body}
    * @private
    */
   static convertTextToLatex(content) {
-    const text = (content || '').trim();
+    let text = (content || '').trim();
+    // Normalize common malformed math delimiters like "$$ $x ...$" -> "$$ x ... $$"
+    // This prevents "Display math should end with $$" errors from mixed delimiters.
+    text = text.replace(/\$\$\s*\$([\s\S]*?)\$/g, '$$ $1 $$');
     if (!text) {
       return `\\begin{center}\\Large\\textbf{SPECTROPY-IIT FOUNDATION MENTOR'S MANUAL}\\end{center}\n\nNo content was generated.`;
     }
@@ -276,13 +279,25 @@ ${body}
     const mathRegex = /(\$\$[\s\S]*?\$\$|\$[^$]*?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g;
     const isMath = /^(\$\$[\s\S]*?\$\$|\$[^$]*?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))$/;
     const parts = source.split(mathRegex);
-    return parts
+    const escaped = parts
       .map((part) => {
         if (!part) return '';
         if (isMath.test(part)) return this.replaceUnicodeMathSymbols(part);
         return this.escapeLatexText(part);
       })
       .join('');
+    return this.convertMarkdownBold(escaped);
+  }
+
+  /**
+   * Convert simple markdown bold (**text**) into LaTeX bold.
+   * Runs after escaping so LaTeX commands are preserved.
+   * @private
+   */
+  static convertMarkdownBold(text) {
+    return String(text || '')
+      .replace(/\\\*{2}/g, '**')
+      .replace(/\*\*([^*]+)\*\*/g, '\\textbf{$1}');
   }
 
   /**
@@ -291,15 +306,28 @@ ${body}
    */
   static replaceUnicodeTextSymbols(text) {
     return String(text || '')
-      .replace(/≤/g, '<=')
-      .replace(/≥/g, '>=')
-      .replace(/≠/g, '!=')
-      .replace(/≈/g, '~=')
-      .replace(/±/g, '+/-')
-      .replace(/×/g, 'x')
-      .replace(/÷/g, '/')
-      .replace(/π/g, 'pi')
-      .replace(/∞/g, 'infinity');
+      .replace(/\u2264/g, '<=') // ≤
+      .replace(/\u2265/g, '>=') // ≥
+      .replace(/\u2260/g, '!=') // ≠
+      .replace(/\u2248/g, '~=') // ≈
+      .replace(/\u00B1/g, '+/-') // ±
+      .replace(/\u00D7/g, 'x') // ×
+      .replace(/\u00F7/g, '/') // ÷
+      .replace(/\u03C0/g, 'pi') // π
+      .replace(/\u221E/g, 'infinity') // ∞
+      // Common Greek letters in plain text -> ASCII names to keep pdflatex happy.
+      .replace(/\u03B1/g, 'alpha') // α
+      .replace(/\u03B2/g, 'beta') // β
+      .replace(/\u03B3/g, 'gamma') // γ
+      .replace(/\u03B4/g, 'delta') // δ
+      .replace(/\u03B8/g, 'theta') // θ
+      .replace(/\u03BB/g, 'lambda') // λ
+      .replace(/\u03BC/g, 'mu') // μ
+      .replace(/\u03C3/g, 'sigma') // σ
+      .replace(/\u03C6/g, 'phi') // φ
+      .replace(/\u03C9/g, 'omega') // ω
+      .replace(/\u0394/g, 'Delta') // Δ
+      .replace(/\u03A9/g, 'Omega'); // Ω
   }
 
   /**
@@ -308,15 +336,28 @@ ${body}
    */
   static replaceUnicodeMathSymbols(text) {
     return String(text || '')
-      .replace(/≤/g, '\\leq ')
-      .replace(/≥/g, '\\geq ')
-      .replace(/≠/g, '\\neq ')
-      .replace(/≈/g, '\\approx ')
-      .replace(/±/g, '\\pm ')
-      .replace(/×/g, '\\times ')
-      .replace(/÷/g, '\\div ')
-      .replace(/π/g, '\\pi ')
-      .replace(/∞/g, '\\infty ');
+      .replace(/\u2264/g, '\\leq ')
+      .replace(/\u2265/g, '\\geq ')
+      .replace(/\u2260/g, '\\neq ')
+      .replace(/\u2248/g, '\\approx ')
+      .replace(/\u00B1/g, '\\pm ')
+      .replace(/\u00D7/g, '\\times ')
+      .replace(/\u00F7/g, '\\div ')
+      .replace(/\u03C0/g, '\\pi ')
+      .replace(/\u221E/g, '\\infty ')
+      // Greek letters inside math segments.
+      .replace(/\u03B1/g, '\\alpha ')
+      .replace(/\u03B2/g, '\\beta ')
+      .replace(/\u03B3/g, '\\gamma ')
+      .replace(/\u03B4/g, '\\delta ')
+      .replace(/\u03B8/g, '\\theta ')
+      .replace(/\u03BB/g, '\\lambda ')
+      .replace(/\u03BC/g, '\\mu ')
+      .replace(/\u03C3/g, '\\sigma ')
+      .replace(/\u03C6/g, '\\phi ')
+      .replace(/\u03C9/g, '\\omega ')
+      .replace(/\u0394/g, '\\Delta ')
+      .replace(/\u03A9/g, '\\Omega ');
   }
 }
 

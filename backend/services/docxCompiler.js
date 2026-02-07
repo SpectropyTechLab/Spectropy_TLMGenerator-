@@ -2,6 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const os = require('os');
 const { execFile } = require('child_process');
+const PDFCompiler = require('./pdfCompiler');
 
 function execFileAsync(command, args, options) {
   return new Promise((resolve, reject) => {
@@ -16,6 +17,48 @@ function execFileAsync(command, args, options) {
   });
 }
 
+function sanitizeLatexForPandoc(latexContent) {
+  let text = String(latexContent || '');
+
+  // Normalize malformed display math delimiters: "$$ $x ... $" -> "$$ x ... $$"
+  text = text.replace(/\$\$\s*\$([\s\S]*?)\$/g, '$$ $1 $$');
+
+  // Fix common escaped/markdown artifacts.
+  text = text
+    .replace(/\\"/g, '"')
+    .replace(/\\\*{2}/g, '**')
+    .replace(/\*\*([^*]+)\*\*/g, '\\textbf{$1}')
+    // Escape underscores in plain text (Pandoc LaTeX reader is strict).
+    .replace(/__/g, '\\_\\_')
+    .replace(/(?<!\\)_/g, '\\_');
+
+  // Convert common Unicode symbols to LaTeX-safe forms.
+  text = text
+    .replace(/\u2264/g, '\\leq ')
+    .replace(/\u2265/g, '\\geq ')
+    .replace(/\u2260/g, '\\neq ')
+    .replace(/\u2248/g, '\\approx ')
+    .replace(/\u00B1/g, '\\pm ')
+    .replace(/\u00D7/g, '\\times ')
+    .replace(/\u00F7/g, '\\div ')
+    .replace(/\u03C0/g, '\\pi ')
+    .replace(/\u221E/g, '\\infty ')
+    .replace(/\u03B1/g, '\\alpha ')
+    .replace(/\u03B2/g, '\\beta ')
+    .replace(/\u03B3/g, '\\gamma ')
+    .replace(/\u03B4/g, '\\delta ')
+    .replace(/\u03B8/g, '\\theta ')
+    .replace(/\u03BB/g, '\\lambda ')
+    .replace(/\u03BC/g, '\\mu ')
+    .replace(/\u03C3/g, '\\sigma ')
+    .replace(/\u03C6/g, '\\phi ')
+    .replace(/\u03C9/g, '\\omega ')
+    .replace(/\u0394/g, '\\Delta ')
+    .replace(/\u03A9/g, '\\Omega ');
+
+  return text;
+}
+
 class DocxCompiler {
   static async compile(latexContent, worksheetId) {
     const pandocBin = process.env.PANDOC_BIN || 'pandoc';
@@ -24,7 +67,10 @@ class DocxCompiler {
     const outputPath = path.join(workDir, 'manual.docx');
 
     try {
-      await fs.writeFile(inputPath, latexContent, 'utf8');
+      // Build a full LaTeX document so Pandoc receives valid LaTeX (lists, escaping, etc.).
+      const latexDoc = PDFCompiler.buildLatexDocument(latexContent, '', worksheetId);
+      const sanitizedLatex = sanitizeLatexForPandoc(latexDoc);
+      await fs.writeFile(inputPath, sanitizedLatex, 'utf8');
       await execFileAsync(pandocBin, ['--from=latex', '--to=docx', inputPath, '-o', outputPath], {
         timeout: 120000,
         windowsHide: true

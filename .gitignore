@@ -2,7 +2,7 @@
 /frontend/.env
 /backend/node_modules
 /frontend/node_modules
-/backend/tmp_pdf_compare
+#/backend/tmp_pdf_compare
 /backend/tmp
 /backend/uploads
 /frontend/dist

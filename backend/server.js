@@ -34,8 +34,18 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        frameAncestors: ["'self'", 'http://localhost:3000', 'http://127.0.0.1:3000'],
-        frameSrc: ["'self'", 'http://localhost:3000', 'http://127.0.0.1:3000']
+        frameAncestors: [
+          "'self'",
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+          'https://spectropy-tlm-generator.vercel.app'
+        ],
+        frameSrc: [
+          "'self'",
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+          'https://spectropy-tlm-generator.vercel.app'
+        ]
       }
     }
   })
